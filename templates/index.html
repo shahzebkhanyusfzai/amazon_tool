@@ -1,0 +1,13 @@
+<!-- templates/index.html -->
+{% extends "base.html" %}
+{% block content %}
+<div class="container home-page">
+  <div class="asin-input-container">
+    <h2>Enter ASIN and dive deep</h2>
+    <form action="{{ url_for('analyze') }}" method="POST">
+      <input type="text" name="asin" placeholder="e.g. B007JXVR76" class="asin-input">
+      <button type="submit" class="deep-dive-btn">Deep Dive</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

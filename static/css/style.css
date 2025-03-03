@@ -1,0 +1,169 @@
+/* static/css/style.css */
+
+/* Global body */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #000; /* black */
+  color: #fff; /* white text */
+  font-family: Arial, sans-serif;
+}
+
+/* Container to hold page content */
+.container {
+  width: 90%;
+  max-width: 1200px;
+  margin: 1rem auto;
+  background-color: #333; /* dark gray background */
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+/* Header / footer */
+header, footer {
+  text-align: center;
+  background-color: #222;
+  padding: 1rem;
+}
+header h1 {
+  margin: 0;
+  color: #fff;
+}
+footer p {
+  margin: 0;
+  color: #ccc;
+}
+
+/* Index page (home) */
+.home-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 60vh; /* center vertically */
+}
+.asin-input-container {
+  text-align: center;
+}
+.asin-input {
+  padding: 0.5rem;
+  font-size: 1rem;
+  width: 200px;
+}
+.deep-dive-btn {
+  padding: 0.5rem 1rem;
+  margin-left: 0.5rem;
+  cursor: pointer;
+  background-color: #666;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+}
+
+/* Analysis page */
+.analysis-page {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 1rem;
+}
+.top-bar {
+  grid-column: 1 / span 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  background-color: #222;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+.asin-input-small {
+  padding: 0.3rem;
+  width: 180px;
+}
+.bulk-analysis-btn {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  background-color: #555;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+}
+.info-panel {
+  background-color: #444;
+  padding: 1rem;
+  border-radius: 6px;
+}
+.info-panel h3, .info-panel h4 {
+  margin-top: 0.5rem;
+}
+.info-panel p, .info-panel li {
+  margin: 0.2rem 0;
+}
+.graph-panel {
+  background-color: #444;
+  padding: 1rem;
+  border-radius: 6px;
+}
+.chart-toggle, .date-range-toggle {
+  margin: 0.5rem 0;
+}
+.chart-container {
+  background-color: #fff; /* White to contrast the lines */
+  border-radius: 4px;
+}
+
+.chart-container {
+  width: 100%;
+  width: 900px;
+  min-height: 500px; /* Enough space for chart */
+  position: relative;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.chart-container canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* Bottom table */
+.sellers-table {
+  grid-column: 1 / span 2;
+  background-color: #444;
+  margin-top: 1rem;
+  border-radius: 6px;
+  padding: 1rem;
+}
+.sellers-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.sellers-table th, .sellers-table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #555;
+}
+.sellers-table th {
+  background-color: #555;
+}
+.total-inventory {
+  margin-top: 1rem;
+  font-weight: bold;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

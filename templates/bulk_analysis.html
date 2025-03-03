@@ -1,0 +1,153 @@
+<!-- templates/bulk_analysis.html -->
+{% extends "base.html" %}
+{% block content %}
+<div class="container analysis-page">
+  <!-- Top bar with a small form to re-enter an ASIN if desired -->
+  <div class="top-bar">
+    <form action="{{ url_for('analyze') }}" method="POST" class="re-analyze-form">
+      <input type="text" name="asin" value="{{ product.get('ASIN', '') }}" class="asin-input-small" />
+      <button type="submit" class="deep-dive-btn">Deep Dive</button>
+    </form>
+    <button class="bulk-analysis-btn">Bulk Analysis</button>
+  </div>
+
+  <!-- Left panel with product info -->
+  <div class="info-panel">
+    {% if product.get('error') %}
+      <h2>Error: {{ product['error'] }}</h2>
+    {% else %}
+      <h3>ASIN: {{ product.get('ASIN', 'N/A') }}</h3>
+      <p><strong>Title:</strong> {{ product.get('Title', 'N/A') }}</p>
+      <!-- <p><strong>Review Count:</strong> {{ product.get('Review Count', 'N/A') }}</p> -->
+      <p><strong>Rating Count:</strong> {{ product.get('Rating Count', 'N/A') }}</p>
+      <p><strong>Category:</strong> {{ product.get('Category', 'N/A') }}</p>
+
+      <!-- Seller (Buy Box) name -->
+      <h4>Seller Name: {{ product.get('Seller Name', 'N/A') }}</h4>
+
+      <!-- Pricing block -->
+      <h4>Pricing</h4>
+      <ul>
+        <li><strong>Current Price:</strong> {{ product["Pricing"]["Current"] }}</li>
+        <li><strong>7 Day Price:</strong> {{ product["Pricing"]["7 Day"] }}</li>
+        <li><strong>30 Days Avg Price:</strong> {{ product["Pricing"]["30 Days Avg"] }}</li>
+        <li><strong>Best Price:</strong> {{ product["Pricing"]["Best"] }}</li>
+      </ul>
+
+      <!-- BSR (Ranking) block -->
+      <h4>Ranking (BSR)</h4>
+      <ul>
+        <li><strong>Current BSR:</strong> {{ product["Ranking"]["Current"] }}</li>
+        <li><strong>7 Day BSR:</strong> {{ product["Ranking"]["7 Day"] }}</li>
+        <li><strong>30 Days Avg BSR:</strong> {{ product["Ranking"]["30 Days Avg"] }}</li>
+        <li><strong>Best BSR:</strong> {{ product["Ranking"]["Best"] }}</li>
+      </ul>
+
+      <!-- Sellers block -->
+      <h4># of Sellers</h4>
+      <ul>
+        <li>FBA: {{ product["# of Sellers"]["FBA"] }}</li>
+        <li>MF: {{ product["# of Sellers"]["MF"] }}</li>
+        <li>Competitive: {{ product["# of Sellers"]["Competitive"] }}</li>
+        <li>Total: {{ product["# of Sellers"]["Total"] }}</li>
+        <li>Is Amazon? {{ product["# of Sellers"]["Is Amazon?"] }}</li>
+      </ul>
+
+      <!-- Inventory block -->
+      <h4>Inventory</h4>
+      <ul>
+        <li>Day of Cover: {{ product["Inventory"]["Day of Cover"] }}</li>
+        <li>Total Inventory: {{ product["Inventory"]["Total Inventory"] }}</li>
+        <li>Estimated Sales: {{ product["Inventory"]["Estimated Sales"] }}</li>
+      </ul>
+    {% endif %}
+  </div>
+
+  <!-- Right panel: Graph -->
+
+  <div class="container analysis-page">
+    <!-- Graph Toggle -->
+    <div class="graph-panel">
+      <h3>Performance Graphs</h3>
+      <div class="chart-toggle">
+        <button onclick="toggleGraph('salesRank')">Sales Rank</button>
+        <button onclick="toggleGraph('buyBox')">Buy Box Price</button>
+        <button onclick="toggleGraph('inventory')">Inventory</button>
+      </div>
+      <div class="chart-container">
+        <canvas id="analysisChart"></canvas>
+      </div>
+      <div class="date-range-toggle">
+        <button onclick="setDateRange(7)">7 days</button>
+        <button onclick="setDateRange(30)">30 days</button>
+        <button onclick="setDateRange(365)">365 days</button>
+      </div>
+      
+    </div>
+  
+    <!-- Embed JSON data from Flask -->
+    <script id="chartData" type="application/json">
+      {{ product | tojson | safe }}
+    </script>
+    
+    <script>
+        window.chartData = JSON.parse(document.getElementById("chartData").textContent);
+    </script>
+    
+  
+  
+  
+  </div>
+  
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        initAnalysisChart();
+      });
+    </script>
+  
+
+  <!-- Bottom table: sample sellers listing (placeholder) -->
+  <div class="sellers-table">
+  <!-- near the bottom: "Seller Offers" table -->
+<!-- near the bottom: "Seller Offers" table -->
+  <h3>Seller Offers</h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:30%;">Seller Name</th>
+        <th style="width:15%;">Review Count</th>
+        <th style="width:15%;">Price</th>
+        <th style="width:15%;">FBA Fee</th>
+        <th style="width:15%;">Inventory</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in product["Sellers"] %}
+        <tr>
+          <td>{{ row["SellerName"] }}</td>
+          <td>{{ row["ReviewCount"] }}</td>
+          <td>{{ row["Price"] }}</td>
+          <td>{{ row["FBAFee"] }}</td>
+          <td>{{ row["Inventory"] }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+
+  </div>
+</div>
+
+  <!-- Chart.js library -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.0.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment"></script>
+  
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      initAnalysisChart();
+    });
+  </script>
+{% endblock %}
