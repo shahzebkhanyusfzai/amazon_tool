@@ -8,7 +8,6 @@
       <input type="text" name="asin" value="{{ product.get('ASIN', '') }}" class="asin-input-small" />
       <button type="submit" class="deep-dive-btn">Deep Dive</button>
     </form>
-    <button class="bulk-analysis-btn">Bulk Analysis</button>
   </div>
 
   <!-- Left panel with product info -->
@@ -29,9 +28,9 @@
       <h4>Pricing</h4>
       <ul>
         <li><strong>Current Price:</strong> {{ product["Pricing"]["Current"] }}</li>
-        <li><strong>7 Day Price:</strong> {{ product["Pricing"]["7 Day"] }}</li>
-        <li><strong>30 Days Avg Price:</strong> {{ product["Pricing"]["30 Days Avg"] }}</li>
-        <li><strong>Best Price:</strong> {{ product["Pricing"]["Best"] }}</li>
+        <li><strong>Historical Weighted Avg:</strong> {{ product["Pricing"]["7 Day"] }}</li>
+        <li><strong>30 Days Avg:</strong> {{ product["Pricing"]["30 Days Avg"] }}</li>
+        <li><strong>Best Price (Min):</strong> {{ product["Pricing"]["Best"] }}</li>
       </ul>
 
       <!-- BSR (Ranking) block -->
@@ -116,16 +115,18 @@
   <table>
     <thead>
       <tr>
-        <th style="width:30%;">Seller Name</th>
-        <th style="width:15%;">Review Count</th>
-        <th style="width:15%;">Price</th>
-        <th style="width:15%;">FBA Fee</th>
-        <th style="width:15%;">Inventory</th>
+        <th>Seller Type</th>
+        <th>Seller Name</th>
+        <th>Review Count</th>
+        <th>Price</th>
+        <th>FBA Fee</th>
+        <th>Inventory</th>
       </tr>
     </thead>
     <tbody>
       {% for row in product["Sellers"] %}
         <tr>
+          <td>{{ row["SellerType"] }}</td>
           <td>{{ row["SellerName"] }}</td>
           <td>{{ row["ReviewCount"] }}</td>
           <td>{{ row["Price"] }}</td>
@@ -135,7 +136,7 @@
       {% endfor %}
     </tbody>
   </table>
-
+  
 
   </div>
 </div>

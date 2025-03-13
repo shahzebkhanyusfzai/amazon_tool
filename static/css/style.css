@@ -1,18 +1,32 @@
 /* static/css/style.css */
 
 /* Global body */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%; /* let them fill the viewport vertically */
+}
+
+
+
 body {
   margin: 0;
   padding: 0;
   background-color: #000; /* black */
   color: #fff; /* white text */
   font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: column; /* stack header -> main -> footer vertically */
 }
 
+main {
+  flex: 1; /* this grows to fill up remaining vertical space */
+}
 /* Container to hold page content */
 .container {
   width: 90%;
-  max-width: 1200px;
+  max-width: 1500px;
   margin: 1rem auto;
   background-color: #333; /* dark gray background */
   padding: 1rem;
@@ -37,18 +51,14 @@ footer p {
 /* Index page (home) */
 .home-page {
   display: flex;
-  justify-content: center;
   align-items: center;
+  flex-direction: row;
+  justify-content: space-around;
+  gap: 1.5rem;
   height: 60vh; /* center vertically */
 }
-.asin-input-container {
-  text-align: center;
-}
-.asin-input {
-  padding: 0.5rem;
-  font-size: 1rem;
-  width: 200px;
-}
+
+
 .deep-dive-btn {
   padding: 0.5rem 1rem;
   margin-left: 0.5rem;
@@ -167,3 +177,183 @@ footer p {
 
 
 
+
+
+
+
+
+
+
+
+/* styles.css */
+
+/* Shared container styling */
+.container, .bulk-analysis-container {
+  padding: 20px;
+  background-color: #333;
+  color: #fff;
+}
+
+/* Headings */
+.bulk-analysis-container h2,
+.home-page h2 {
+  color: #ffcc00;
+}
+
+/* Top bar for the bulk analysis page */
+.bulk-analysis-topbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.bulk-analysis-topbar form {
+  margin-right: 20px;
+}
+
+/* Table styling */
+.bulk-results-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #444;
+}
+
+.bulk-results-table thead tr {
+  background-color: #555;
+}
+
+.bulk-results-table th,
+.bulk-results-table td {
+  border: 1px solid #666;
+  padding: 8px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+
+/* Buttons */
+.deep-dive-btn,
+.bulk-analysis-btn {
+  background-color: #ffcc00;
+  border: none;
+  color: #333;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: bold;
+  border-radius: 4px;
+  margin: 5px;
+}
+.deep-dive-btn:hover,
+.bulk-analysis-btn:hover {
+  background-color: #e6b800;
+}
+
+/* A back-home link or button */
+.btn-back-home {
+  color: #fff;
+  text-decoration: none;
+  padding: 6px 12px;
+  border: 1px solid #ffcc00;
+  border-radius: 4px;
+}
+.btn-back-home:hover {
+  background-color: #ffcc00;
+  color: #333;
+}
+ 
+
+
+
+
+
+.asin-input,
+.upc-input {
+  width: 300px;
+  padding: 6px; /* or 0.5rem if you prefer consistent units */
+  margin-right: 10px;
+  border: 1px solid #666;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+
+
+
+
+
+
+
+
+
+
+.sellers-table table {
+  width: 100%;
+  border-collapse: collapse;
+  /* Force columns to line up by their <th> widths */
+  table-layout: fixed;
+}
+
+.sellers-table th,
+.sellers-table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #555;
+  text-align: left; /* or center if you prefer */
+}
+
+/* If you want to set specific widths for each column, do: */
+.sellers-table th:nth-child(1),
+.sellers-table td:nth-child(1) { width: 10%; }
+.sellers-table th:nth-child(2),
+.sellers-table td:nth-child(2) { width: 25%; }
+.sellers-table th:nth-child(3),
+.sellers-table td:nth-child(3) { width: 15%; }
+.sellers-table th:nth-child(4),
+.sellers-table td:nth-child(4) { width: 15%; }
+.sellers-table th:nth-child(5),
+.sellers-table td:nth-child(5) { width: 15%; }
+.sellers-table th:nth-child(6),
+.sellers-table td:nth-child(6) { width: 20%; }
+
+
+
+
+.header-logo {
+  display: inline-block;
+  color: #fff;
+  text-decoration: none;
+}
+
+.header-logo h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  transition: color 0.3s ease; /* Smooth color transition */
+}
+
+/* Apply hover effect to the h1 inside .header-logo */
+.header-logo:hover h1 {
+  color: #ffcc00; /* Yellow color on hover */
+  text-decoration: underline;
+}
+
+
+
+
+/* 1) Override link colors for table links */
+.bulk-results-table td a {
+  color: #fff;             /* white text for both visited and unvisited */
+  text-decoration: none;   /* remove underline if you like */
+}
+
+.bulk-results-table td a:hover {
+  color: #ffcc00; /* hover to yellow */
+}
+
+
+
+
+.banana-icon {
+  max-width: 100%;  /* or whatever fits your cell */
+  height: auto;     /* maintain aspect ratio */
+  display: block;
+  margin: 0 auto;   /* center it horizontally in the cell */
+}

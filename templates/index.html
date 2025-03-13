@@ -2,12 +2,26 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container home-page">
+  <h2>My Amazon Analysis Tool</h2>
+
+  <!-- ASIN Analysis Box -->
   <div class="asin-input-container">
-    <h2>Enter ASIN and dive deep</h2>
+    <h3>Enter ASIN and dive deep</h3>
     <form action="{{ url_for('analyze') }}" method="POST">
       <input type="text" name="asin" placeholder="e.g. B007JXVR76" class="asin-input">
       <button type="submit" class="deep-dive-btn">Deep Dive</button>
     </form>
   </div>
+
+  <!-- UPC Bulk Analysis Box -->
+  <div class="upc-input-container">
+    <h3>Enter UPC(s) for bulk analysis</h3>
+    <form action="{{ url_for('bulk_analysis') }}" method="POST">
+      <!-- For multiple codes, user can comma-separate them -->
+      <input type="text" name="upc" placeholder="e.g. 012345678901, 098765432109..." class="upc-input">
+      <button type="submit" class="bulk-analysis-btn">Bulk Analysis</button>
+    </form>
+  </div>
+
 </div>
 {% endblock %}

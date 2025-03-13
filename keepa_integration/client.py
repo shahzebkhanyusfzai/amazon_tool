@@ -71,51 +71,76 @@ def fetch_seller_info(seller_id):
         "sellerLifetimeRatings": lifetime
     }
 
-def build_sellers_table_only_buybox_sellers(product):
+def build_sellers_table_active(product):
     """
-    Just like your original approach: gather any seller in stats["buyBoxStats"] / buyBoxUsedStats,
-    find the matching 'offer' for that seller to get last-known price, stock, etc.
+    Return a list of *live (active)* sellers with columns:
+       [SellerType, SellerName, ReviewCount, Price, FBAFee, Inventory].
+    SellerType can be "Amazon" / "FBA" / "MF".
+    FBAFee is taken from stats['fbaFees']['pickAndPackFee'] if the offer isFBA or isAmazon.
     """
     stats = product.get("stats", {})
-    bbs    = stats.get("buyBoxStats", {})
-    bbs_used = stats.get("buyBoxUsedStats", {})
-    seller_ids = set(bbs.keys()) | set(bbs_used.keys())
+    offers_all = product.get("offers", [])
+    live_order = product.get("liveOffersOrder", [])
 
-    offers_by_seller = {}
-    for off in product.get("offers", []):
-        sid = off.get("sellerId")
-        if sid:
-            offers_by_seller[sid] = off
+    # If the product stats has an FBA fee
+    pick_pack_fee = None
+    fba_fees = stats.get("fbaFees", {})
+    if isinstance(fba_fees, dict):
+        pick_pack_fee = fba_fees.get("pickAndPackFee")
 
     result = []
-    for sid in seller_ids:
-        off = offers_by_seller.get(sid)
-        if not off:
-            continue
-        price_cents = get_offer_last_price(off)
-        if not price_cents or price_cents <= 0:
+
+    for idx in live_order:
+        if idx < len(offers_all):
+            off = offers_all[idx]
+        else:
             continue
 
-        row = {}
+        # Determine SellerType
+        if off.get("isAmazon", False):
+            seller_type = "Amazon"
+        elif off.get("isFBA", False):
+            seller_type = "FBA"
+        else:
+            seller_type = "MF"
+
+        # Price
+        price_cents = get_offer_last_price(off)
+        if not price_cents or price_cents < 0:
+            continue  # skip invalid price
+
+        # FBA fee
+
+        fba_fees = product.get("fbaFees", {})
+        if isinstance(fba_fees, dict):
+            pick_pack_fee = fba_fees.get("pickAndPackFee")
+        if (seller_type in ["Amazon", "FBA"]) and pick_pack_fee is not None and pick_pack_fee >= 0:
+            fba_fee_str = to_dollars(pick_pack_fee)
+        else:
+            fba_fee_str = "N/A"
+
+
+        # Inventory
+        stock = get_offer_last_stock(off)
+        # If you want sellerName from Keepa’s /seller endpoint, call fetch_seller_info:
+        sid = off.get("sellerId", "??")
         info = fetch_seller_info(sid)
         if info:
-            row["SellerName"]  = info["sellerName"]
-            row["ReviewCount"] = info["sellerLifetimeRatings"]
+            actual_seller_name = info["sellerName"]
+            review_count = info["sellerLifetimeRatings"]
         else:
-            row["SellerName"]  = f"SellerID: {sid}"
-            row["ReviewCount"] = ""
+            actual_seller_name = sid
+            review_count = ""
 
-        row["Price"] = to_dollars(price_cents)
-        row["Inventory"] = get_offer_last_stock(off)
-        
-        # FBA fee if isFBA
-        is_fba = off.get("isFBA", False)
-        pick_pack_fee = stats.get("fbaFees", {}).get("pickAndPackFee")
-        if is_fba and isinstance(pick_pack_fee, int) and pick_pack_fee > 0:
-            row["FBAFee"] = to_dollars(pick_pack_fee)
-        else:
-            row["FBAFee"] = "N/A"
 
+        row = {
+            "SellerType": seller_type,
+            "SellerName": actual_seller_name,
+            "ReviewCount": review_count,
+            "Price": to_dollars(price_cents),
+            "FBAFee": fba_fee_str,
+            "Inventory": stock
+        }
         result.append(row)
 
     return result
@@ -160,17 +185,25 @@ def parse_bsr_times(product):
     return (current_bsr, avg7, avg30, best_bsr)
 
 def sum_all_stocks(product):
-    """
-    Sum stock from each offer + stats["stockAmazon"] if any.
-    """
-    tot = 0
-    for off in product.get("offers", []):
-        tot += get_offer_last_stock(off)
+    """Sum stock from each *live* offer + stats["stockAmazon"] (if > 0)."""
     stats = product.get("stats", {})
+    live_order = product.get("liveOffersOrder", [])
+    offers_all = product.get("offers", [])
+    tot = 0
+
+    for idx in live_order:
+        if idx < len(offers_all):
+            off = offers_all[idx]
+            tot += get_offer_last_stock(off)
+
+    # Also add Amazon stock if available
     amz_stock = stats.get("stockAmazon", 0)
     if isinstance(amz_stock, int) and amz_stock > 0:
         tot += amz_stock
+
     return tot
+
+
 
 def count_competitive_sellers(product):
     """
@@ -263,8 +296,8 @@ def fetch_product_data(asin):
             bb_price = c[0]
     # fallback for 7/30
     p7=-1; p30=-1
-    if isinstance(stats.get("avg7"), list) and stats["avg7"]:
-        p7 = stats["avg7"][0]
+    if isinstance(stats.get("avg"), list) and stats["avg"]:
+        p7 = stats["avg"][0]
     if isinstance(stats.get("avg30"), list) and stats["avg30"]:
         p30= stats["avg30"][0]
 
@@ -285,7 +318,33 @@ def fetch_product_data(asin):
     fba = stats.get("offerCountFBA",0)
     mf  = stats.get("offerCountFBM",0)
     tot = stats.get("totalOfferCount",0)
+
+
+
+    # Step 1: Try to get the new Buy Box seller ID
+    buy_box_seller_id = stats.get("buyBoxSellerId")
+    # If none or "-1" / "-2" => check if there's a used buy box
+    if not buy_box_seller_id or buy_box_seller_id in ("-1", "-2"):
+        used_seller_id = stats.get("buyBoxUsedSellerId")
+        if used_seller_id and used_seller_id not in ("", "-1", "-2"):
+            buy_box_seller_id = used_seller_id
+
+    # Step 2: If we have a valid ID, fetch the seller info
+    if buy_box_seller_id and buy_box_seller_id not in ("-1", "-2", ""):
+        info = fetch_seller_info(buy_box_seller_id)
+        if info:
+            final_data["Seller Name"] = info["sellerName"]
+        else:
+            # Fallback if API fails
+            final_data["Seller Name"] = f"SellerID:{buy_box_seller_id}"
+    else:
+        # No valid buy box or suppressed/suppressed, so show "N/A" or something
+        final_data["Seller Name"] = "No Buy Box"
+
+
+
     is_amz = stats.get("buyBoxIsAmazon", False)
+
     comp  = count_competitive_sellers(product)
     final_data["# of Sellers"] = {
         "FBA": fba,
@@ -294,27 +353,37 @@ def fetch_product_data(asin):
         "Total": tot,
         "Is Amazon?": "Yes" if is_amz else "No"
     }
-    final_data["Seller Name"] = "Amazon" if is_amz else "3rd Party"
 
     # Inventory
-    total_inven = sum_all_stocks(product)
-    monthly_sold= product.get("monthlySold", 0)
-    if not isinstance(monthly_sold, int) or monthly_sold<=0:
-        final_data["Inventory"] = {
-            "Day of Cover":"N/A",
-            "Total Inventory": total_inven,
-            "Estimated Sales":"N/A"
-        }
-    else:
-        doc = round((total_inven/monthly_sold)*30,1)
+    total_inven = sum_all_stocks(product)  # Now only live
+    monthly_sold = product.get("monthlySold", 0)
+
+    if (
+        isinstance(monthly_sold, int) and monthly_sold > 0
+        and isinstance(b30, int) and b30 > 0
+        and isinstance(c_bsr, int) and c_bsr > 0
+    ):
+        ratio = c_bsr / b30
+        adjusted_sold = round(monthly_sold * ratio)
+        # Day of Cover
+        doc = round((total_inven / adjusted_sold) * 30, 1)
         final_data["Inventory"] = {
             "Day of Cover": doc,
             "Total Inventory": total_inven,
-            "Estimated Sales": monthly_sold
+            "Estimated Sales": adjusted_sold
+        }
+    else:
+        final_data["Inventory"] = {
+            "Day of Cover": "N/A",
+            "Total Inventory": total_inven,
+            "Estimated Sales": "N/A"
         }
 
     # Table #2
-    final_data["Sellers"] = build_sellers_table_only_buybox_sellers(product)
+    # final_data["Sellers"] = build_sellers_table_only_buybox_sellers(product)
+
+    # Table #2: now list active (live) sellers
+    final_data["Sellers"] = build_sellers_table_active(product)
 
     #
     # PART B: Chart data with { x, y } approach
@@ -348,22 +417,6 @@ def fetch_product_data(asin):
                     "y": rankv
                 })
 
-    # # 2) Buy Box from CSV[18] => new buy box price history 
-    # chart_buybox = []
-    # csv_all = product.get("csv", [])
-    # if len(csv_all) > 18 and isinstance(csv_all[18], list):
-    #     bb_arr = csv_all[18]  # [ts, price, ts, price, ...]
-    #     pairs = []
-    #     for i in range(0, len(bb_arr), 2):
-    #         if i+1 < len(bb_arr):
-    #             pairs.append((bb_arr[i], bb_arr[i+1]))
-    #     pairs.sort(key=lambda x: x[0])
-    #     for (ts, price_cents) in pairs:
-    #         if price_cents >= 0:
-    #             chart_buybox.append({
-    #                 "x": keepa_ts_to_str(ts),
-    #                 "y": price_cents / 100.0
-    #             })
     # 2) Buy Box Price - Fetch from CSV[1] instead of CSV[18]
     chart_buybox = []
     csv_all = product.get("csv", [])
@@ -411,4 +464,7 @@ def fetch_product_data(asin):
         print("no chart")
     if not final_data['chartInventory']:
         print("no inv")
+
+    final_data["__rawKeepaResponse"] = raw
+
     return final_data

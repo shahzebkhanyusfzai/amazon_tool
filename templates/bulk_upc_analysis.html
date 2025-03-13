@@ -1,0 +1,144 @@
+<!-- templates/bulk_upc_analysis.html -->
+{% extends "base.html" %}
+{% block content %}
+<div class="bulk-analysis-container">
+  <h2>Bulk UPC Analysis</h2>
+
+  <div class="bulk-analysis-topbar" style="display: flex; justify-content: space-between; align-items: center;">
+  
+    <!-- Left side: UPC + Analyze form -->
+    <div>
+      <form action="{{ url_for('bulk_analysis') }}" method="POST" style="display: inline-block;">
+        <input type="text" name="upc" placeholder="e.g. 012345678901, 098765432109..." class="upc-input">
+        <button type="submit" class="bulk-analysis-btn">Analyze</button>
+      </form>
+    </div>
+  
+    <!-- Right side: cost-of-goods + "Calculate" button (JS only) -->
+    <div>
+      <input type="number" step="0.01" id="costOfGoodsInput" placeholder="Cost of Goods" class="upc-input" style="width:140px; margin-right: 10px;">
+      <button type="button" class="bulk-analysis-btn" onclick="recalcProfitJS()">Calculate</button>
+    </div>
+  
+  </div>
+  
+  
+
+  {% if not results %}
+    <p>No data yet. Enter some UPCs above!</p>
+  {% else %}
+    <div class="results-table-container">
+      <table class="bulk-results-table">
+        <thead>
+          <tr>
+            <th>Banana</th>
+            <th>Title / ASIN / UPC / Reviews</th>
+            <th>Lowest Price: (30d / 90d)</th>
+            <th>Profitability</th>
+            <th>Sales Rank</th>
+            <th>Estimated Sales</th>
+            <th>Inventory<br>(QTY / Days)</th>
+            <th>Bought in Past Month</th>
+            <th># Sellers</th>
+            <th>Sold By Amazon</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in results %}
+          <tr>
+            <!-- 1) Banana -->
+            <td>
+                {% set doc = item.inventory.daysOfCover %}
+                {% if doc != "N/A" and doc|float <= 15 %}
+                <img src="{{ url_for('static', filename='img/yellow_banana.png') }}" alt="Banana" class="banana-icon">
+                {% elif doc != "N/A" and doc|float <= 22 %}
+                <img src="{{ url_for('static', filename='img/green_banana.png') }}" alt="Banana" class="banana-icon">
+                {% else %}
+                <img src="{{ url_for('static', filename='img/rotten_banana.jpg') }}" alt="Banana" class="banana-icon">
+                {% endif %}
+            </td>
+  
+
+            <!-- 2) Title / ASIN / UPC / Reviews -->
+            <td>
+                <a href="{{ url_for('analyze') }}?asin={{ item.asin }}">
+                    <strong>{{ item.title }}</strong><br>
+                    ASIN: {{ item.asin }}<br>
+                    UPC(s): {{ item.upc|join(', ') }}<br>
+                    Rating: {{ item.rating.star }} ({{ item.rating.count }} reviews)
+                </a>
+            </td>
+
+            <!-- 3) Lowest Price => show current / 7d / 30d -->
+            <td>
+              Current: {{ item.pricing.current }}<br>
+              30d: {{ item.pricing.avg30 }}<br>
+              90d: {{ item.pricing.avg90 }}
+            </td>
+
+            <!-- 4) Profitability (for now, "N/A") -->
+            <td>
+                {{ item.profitability|safe }}
+            </td>
+
+            <!-- 5) Sales Rank => e.g. "Current: X / 30d: Y" or however you want -->
+            <td>
+              Current: {{ item.ranking.current }}<br>
+              7d: {{ item.ranking.avg7 }}<br>
+              30d: {{ item.ranking.avg30 }}
+            </td>
+
+            <!-- 6) Estimated Sales -->
+            <td>
+              {% if item.estimatedSales != "N/A" %}
+                {{ item.estimatedSales }}
+              {% else %}
+                N/A
+              {% endif %}
+            </td>
+
+            <!-- 7) Inventory => "Stock: X / DaysCover: Y" -->
+            <td>
+              Stock: {{ item.inventory.totalStock }}<br>
+              Days of Cover: {{ item.inventory.daysOfCover }}
+            </td>
+
+            <!-- 8) Bought in Past Month -->
+            <td>
+              {% if item.boughtInPastMonth != "N/A" %}
+                {{ item.boughtInPastMonth }}
+              {% else %}
+                N/A
+              {% endif %}
+            </td>
+
+            <!-- 9) # Sellers => "FBA: X / MF: Y / Total: Z" -->
+            <td>
+              FBA: {{ item['#sellers'].FBA }}<br>
+              MF: {{ item['#sellers'].MF }}<br>
+              Total: {{ item['#sellers'].Total }}
+            </td>
+
+            <!-- 10) Sold by Amazon => check "IsAmazon" bool -->
+            <td>
+              {% if item['#sellers'].IsAmazon %}
+                Yes
+              {% else %}
+                No
+              {% endif %}
+            </td>
+
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Pass the results to JS if needed -->
+<script id="bulkResultsData" type="application/json">
+  {{ results|tojson|safe }}
+</script>
+<script src="{{ url_for('static', filename='js/bulk_upc.js') }}"></script>
+{% endblock %}
