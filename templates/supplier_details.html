@@ -1,0 +1,58 @@
+<!-- templates/supplier_details.html -->
+{% extends "base.html" %}
+{% block content %}
+<div class="container" id="supplier-details-container">
+  <h2>Supplier UPCs</h2>
+
+  <!-- Pagination controls -->
+  <div style="margin-bottom: 1rem;">
+    <button class="bulk-analysis-btn" onclick="prevPage()">Prev</button>
+    <span id="pageInfo"></span>
+    <button class="bulk-analysis-btn" onclick="nextPage()">Next</button>
+  </div>
+
+  <table class="bulk-results-table">
+    <thead>
+      <tr>
+        <th>Banana</th>
+        <th>Title / ASIN / UPC / Reviews</th>
+        <th>Lowest Price: (30d / 90d)</th>
+        <th>Profitability</th>
+        <th>Sales Rank</th>
+        <th>Estimated Sales</th>
+        <th>Inventory<br>(QTY / Days)</th>
+        <th>Bought in Past Month</th>
+        <th># Sellers</th>
+        <th>Sold By Amazon</th>
+      </tr>
+    </thead>
+    <tbody id="supplierDetailTableBody">
+    </tbody>
+  </table>
+</div>
+
+<!-- A hidden modal for the Profit Calculator -->
+<div id="profitModal" class="profit-modal" style="display:none;">
+    <div class="profit-modal-content">
+      <span id="closeModal" class="modal-close">&times;</span>
+      <h3>Profit Calculator</h3>
+      
+      <label>Sell Price ($):
+        <input type="number" step="0.01" id="modalSellPrice" value="0" />
+      </label>
+      
+      <div>
+        <button id="recalcBtn" class="bulk-analysis-btn">Recalculate</button>
+      </div>
+      
+      <div id="profitResultArea">
+        <!-- We'll fill in "Profit: X" and "ROI: Y%" here -->
+      </div>
+    </div>
+  </div>
+  
+
+
+<!-- The JS code that populates the table -->
+<script src="{{ url_for('static', filename='js/supplier_details.js') }}"></script>
+{% endblock %}

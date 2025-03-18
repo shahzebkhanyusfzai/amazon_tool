@@ -1,7 +1,10 @@
+# keepa_integration/client_bulk.py
+
 import requests
 import datetime
 import json
 import os
+import time
 
 from config import KEEPA_API_KEY, AMAZON_DOMAIN_ID
 from keepa_integration.client import (
@@ -12,29 +15,74 @@ from keepa_integration.client import (
     count_competitive_sellers
 )
 
+# ---------------------------------------------------------------------
+# Add these constants for retry logic:
+MAX_RETRIES = 5         # how many times we'll retry on 429
+
+def safe_keepa_request(params):
+    base_url = "https://api.keepa.com/product"
+    attempts = 0
+
+    # attempts 1 => 120s(2m), attempts 2 => 300s(5m), attempts 3 => 600s(10m), ...
+    WAIT_MAPPING = {
+        1: 120,
+        2: 300,
+        3: 600,
+        4: 900,
+        5: 1200,
+    }
+
+    code_str = params.get("code", "")
+    code_list = code_str.split(",")
+    short_str = ", ".join(code_list[:3])
+
+    while attempts < MAX_RETRIES:
+        attempts += 1
+        print(f"[DEBUG safe_keepa_request] Attempt {attempts}/{MAX_RETRIES} -> first few codes: [{short_str}]")
+
+        resp = requests.get(base_url, params=params)
+
+        if resp.status_code == 429:
+            wait_time = WAIT_MAPPING.get(attempts, 1200)  # fallback if attempts>5
+            print(f"[WARN] Got 429 from Keepa => sleeping {wait_time} seconds.")
+            time.sleep(wait_time)
+            continue
+        elif resp.status_code != 200:
+            print(f"[ERROR] Keepa returned HTTP {resp.status_code} (non-429). No retry for now.")
+            return None
+        else:
+            return resp.json()
+
+    print(f"[ERROR] Gave up after {MAX_RETRIES} attempts for codes: [{short_str}]")
+    return None
+
 def count_sellers(product):
     """
-    Return a tuple (fba_count, mf_count, total) for the active/live offers of this product.
-    We look at product["offers"] + product["liveOffersOrder"] to figure out
-    which offers are currently active, then increment counters based on isAmazon/isFBA flags.
+    Return a tuple (fba_count, mf_count, total).
     """
     offers = product.get("offers", [])
-    live_order = product.get("liveOffersOrder", [])
+
+    # Safely handle possible `null`
+    live_order = product.get("liveOffersOrder")
+    if not isinstance(live_order, list):
+        live_order = []
+
     fba_count = 0
     mf_count = 0
 
     for idx in live_order:
         if idx < len(offers):
             off = offers[idx]
-            if off.get("isAmazon"):       # Amazon official seller
+            if off.get("isAmazon"):  # ...
                 fba_count += 1
-            elif off.get("isFBA"):       # 3P FBA
+            elif off.get("isFBA"):
                 fba_count += 1
-            else:                        # MF or "Seller Fulfilled Prime" unknown
+            else:
                 mf_count += 1
 
     total = fba_count + mf_count
     return (fba_count, mf_count, total)
+
 
 def fetch_bulk_product_data(upc_list, cost_of_goods=0.0):
     """
@@ -46,13 +94,13 @@ def fetch_bulk_product_data(upc_list, cost_of_goods=0.0):
       - Ranking, #Sellers, Inventory stats
       - FBA Fee + referral fee percentage
       - (Empty) profitability field for now
-      - Debug prints to confirm pickAndPackFee
-
-    Returns a list of dicts, each dict representing one Keepa product transformed.
     """
-
     # 1) Convert UPC list to a comma-separated string
     code_str = ",".join(upc_list)
+
+    # For debug: Show only first 3 codes
+    debug_upc_preview = ", ".join(upc_list[:3])
+    print(f"[DEBUG fetch_bulk_product_data] => upc_list size={len(upc_list)}; first few => [{debug_upc_preview}]")
 
     # 2) Build query params for Keepa
     params = {
@@ -69,22 +117,23 @@ def fetch_bulk_product_data(upc_list, cost_of_goods=0.0):
         "code-limit": 20    # up to 20 products per code
     }
 
-    print(f"[DEBUG] fetch_bulk_product_data() => Requesting from Keepa with UPC(s): {upc_list}")
-    print(f"[DEBUG] Keepa request params => {params}")
+    print("[DEBUG fetch_bulk_product_data] => sending request to Keepa ...")
 
-    # 3) Send the request to Keepa
-    base_url = "https://api.keepa.com/product"
-    resp = requests.get(base_url, params=params)
-    if resp.status_code != 200:
-        print(f"[ERROR] Keepa returned HTTP {resp.status_code}")
+    # 3) Use the safe_keepa_request (with 429 handling)
+    raw_json = safe_keepa_request(params)
+    if raw_json is None:
+        print("[ERROR] No response from Keepa (raw_json=None).")
         return []
+    # else:   
+    #     print("=== DEBUG: Full Keepa response for this chunk ===")
+    #     print(json.dumps(raw_json, indent=2))  # or a truncated version
+
 
     # 4) Parse the JSON, save a raw debug copy
-    raw_json = resp.json()
     with open("bulk_upc_results_raw.json", "w", encoding="utf-8") as f:
         json.dump(raw_json, f, indent=2)
-    products = raw_json.get("products", [])
 
+    products = raw_json.get("products", [])
     print(f"[DEBUG] Keepa responded with {len(products)} product(s).")
 
     if not products:
@@ -105,7 +154,10 @@ def fetch_bulk_product_data(upc_list, cost_of_goods=0.0):
 
         # Monthly Sold
         monthly_sold = product.get("monthlySold", 0)
-        bought_in_past_month = monthly_sold if (isinstance(monthly_sold, int) and monthly_sold > 0) else "N/A"
+        if isinstance(monthly_sold, int) and monthly_sold > 0:
+            bought_in_past_month = monthly_sold
+        else:
+            bought_in_past_month = "N/A"
 
         # Compute estimated sales => ratio c_bsr / b30
         estimated_sales = "N/A"
@@ -115,13 +167,18 @@ def fetch_bulk_product_data(upc_list, cost_of_goods=0.0):
             ratio = c_bsr / b30
             estimated_sales = int(monthly_sold * ratio)
 
-        # Star rating & rating count from CSV index 16/17
+        # CSV => rating
         csv_data = product.get("csv", [])
         def last_val(arr):
             return arr[-1] if (len(arr)>=2 and isinstance(arr[-1], int) and arr[-1]>=0) else None
 
-        star_val   = last_val(csv_data[16]) if len(csv_data)>16 and isinstance(csv_data[16], list) else None
-        rating_val = last_val(csv_data[17]) if len(csv_data)>17 and isinstance(csv_data[17], list) else None
+        star_val   = None
+        rating_val = None
+        if len(csv_data)>16 and isinstance(csv_data[16], list):
+            star_val = last_val(csv_data[16])
+        if len(csv_data)>17 and isinstance(csv_data[17], list):
+            rating_val = last_val(csv_data[17])
+
         star_str   = "N/A" if star_val   is None else f"{star_val/10:.1f}"
         rating_str = "N/A" if rating_val is None else str(rating_val)
 
@@ -152,7 +209,10 @@ def fetch_bulk_product_data(upc_list, cost_of_goods=0.0):
             sales = "N/A"
         else:
             # days of cover
-            doc   = round((total_inven / estimated_sales)*30, 1)
+            if isinstance(estimated_sales, int) and estimated_sales>0:
+                doc = round((total_inven / estimated_sales)*30, 1)
+            else:
+                doc = "N/A"
             sales = monthly_sold
 
         # Seller info
@@ -160,19 +220,18 @@ def fetch_bulk_product_data(upc_list, cost_of_goods=0.0):
         comp   = count_competitive_sellers(product)
         fba_cnt, mf_cnt, tot_cnt = count_sellers(product)
 
-        # 2) fetch FBA fee from product stats => "pickAndPackFee"
-
-        pickAndPackFee_cents = product.get("fbaFees", {}).get("pickAndPackFee", 0)
-
+        # pickAndPackFee
+        fba_fees = product.get("fbaFees")
+        if not isinstance(fba_fees, dict):
+            fba_fees = {}
+        pickAndPackFee_cents = fba_fees.get("pickAndPackFee", 0)
         fba_fee = pickAndPackFee_cents / 100.0
 
         # fallback referral fee to 15% if missing
         referral_fee_pct = stats.get("referralFeePercentage", 15.0)
 
-        # Debug printing to confirm the fee
-        print(f"[DEBUG] ASIN {asin}: pickAndPackFee_cents={pickAndPackFee_cents} => fba_fee={fba_fee}")
+        print(f"[DEBUG] ASIN {asin} => pickAndPackFee_cents={pickAndPackFee_cents} => fba_fee={fba_fee}")
 
-        # Build final record
         final_data = {
             "asin": asin,
             "upc": product.get("upcList", []),
@@ -210,21 +269,48 @@ def fetch_bulk_product_data(upc_list, cost_of_goods=0.0):
             "profitability": " ",  # placeholder
             "boughtInPastMonth": bought_in_past_month,
             "estimatedSales": estimated_sales,
-            # FBA/Referral fees for use in front-end calculations
             "fba_fee": fba_fee,
             "referral_fee_pct": referral_fee_pct
         }
 
         final_data_list.append(final_data)
 
-    
-    # raw_json = resp.json()
-
-    # # 4) Save raw response for debugging
-    # with open("bulk_upc_results_raw.json", "w", encoding="utf-8") as f:
-    #     json.dump(raw_json, f, indent=2)
-    # # 6) Save the simplified results for debugging
-    # with open("bulk_upc_results.json", "w", encoding="utf-8") as f:
-    #     json.dump(final_data_list, f, indent=2)
-
     return final_data_list
+
+
+def fetch_bulk_product_data_all(all_upcs, cost_of_goods=0.0):
+    """
+    If more than 100 upcs, chunk them and combine the results 
+    from fetch_bulk_product_data (which handles up to 100 at once).
+    """
+    CHUNK_SIZE = 100
+    final_results = []
+
+    if not all_upcs:
+        print("[WARNING] fetch_bulk_product_data_all => Received an empty list of UPCs.")
+        return []
+
+    total_count = len(all_upcs)
+    print(f"[DEBUG] fetch_bulk_product_data_all => total upcs = {total_count}")
+
+    if len(all_upcs) <= CHUNK_SIZE:
+        # Single chunk
+        print(f"[DEBUG] single-chunk scenario => upcs={len(all_upcs)} => {all_upcs[:3]}")
+        return fetch_bulk_product_data(all_upcs, cost_of_goods=cost_of_goods)
+
+    # otherwise chunk it up
+    chunk_number = 0
+    for i in range(0, len(all_upcs), CHUNK_SIZE):
+        chunk_number += 1
+        chunk = all_upcs[i : i+CHUNK_SIZE]
+        short_preview = ", ".join(chunk[:3])
+        print(f"\n[DEBUG] CHUNK #{chunk_number} => size={len(chunk)} => first few = [{short_preview}]")
+
+        chunk_results = fetch_bulk_product_data(chunk, cost_of_goods=cost_of_goods)
+        print(f"[DEBUG] chunk #{chunk_number} => got {len(chunk_results)} products back from Keepa")
+
+        final_results.extend(chunk_results)
+
+    print(f"[DEBUG] All chunks done => total final_results size = {len(final_results)}")
+
+    return final_results

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container suppliers-page">
+  <h2>My Suppliers</h2>
+
+  <!-- Example progress bar style (optional). Adjust as needed. -->
+  <div style="margin: 1rem 0;">
+    <div style="background: #444; height: 20px; width: 100%; border-radius: 4px; position: relative;">
+      <!-- The "green" filled portion -->
+      <div id="suppliersProgressBar" 
+           style="background: #2ecc71; height: 100%; width: 10%; border-radius: 4px;">
+      </div>
+      <!-- Overlaid text -->
+      <span id="suppliersProgressText" 
+            style="position: absolute; left: 50%; top: 0; transform: translateX(-50%); color: #fff; line-height: 20px;">
+        9,155 out of 100,000 UPCs available
+      </span>
+    </div>
+  </div>
+
+  <h3>Supplier List</h3>
+  <!-- We'll fill these from localStorage using JS -->
+  <ul id="suppliersList">
+    <!-- JS will append <li> items here -->
+  </ul>
+
+<!-- Also valid: single quotes for onclick, double quotes for Jinja URL -->
+<button class="bulk-analysis-btn" id="addSupplierBtn">
+  Add New Supplier
+</button>
+
+<script>
+  document.getElementById("addSupplierBtn").addEventListener("click", function() {
+    window.location.href = "{{ url_for('add_supplier') }}";
+  });
+</script>
+
+
+</div>
+
+<!-- Link our new JS file to handle localStorage reading and rendering -->
+<script src="{{ url_for('static', filename='js/suppliers.js') }}"></script>
+{% endblock %}

@@ -4,23 +4,27 @@
 <div class="bulk-analysis-container">
   <h2>Bulk UPC Analysis</h2>
 
-  <div class="bulk-analysis-topbar" style="display: flex; justify-content: space-between; align-items: center;">
-  
+  <div class="bulk-analysis-topbar" style="display: flex; align-items: center;">
     <!-- Left side: UPC + Analyze form -->
-    <div>
+    <div style="flex: 1;">
       <form action="{{ url_for('bulk_analysis') }}" method="POST" style="display: inline-block;">
         <input type="text" name="upc" placeholder="e.g. 012345678901, 098765432109..." class="upc-input">
         <button type="submit" class="bulk-analysis-btn">Analyze</button>
       </form>
     </div>
   
-    <!-- Right side: cost-of-goods + "Calculate" button (JS only) -->
-    <div>
+    <!-- Right side: cost-of-goods + "Calculate" button -->
+    <div style="margin-right: 1rem;">
       <input type="number" step="0.01" id="costOfGoodsInput" placeholder="Cost of Goods" class="upc-input" style="width:140px; margin-right: 10px;">
       <button type="button" class="bulk-analysis-btn" onclick="recalcProfitJS()">Calculate</button>
     </div>
   
+    <!-- NEW: “My Suppliers” button at top-right -->
+    <div>
+      <a href="{{ url_for('my_suppliers') }}" class="bulk-analysis-btn">My Suppliers</a>
+    </div>
   </div>
+  
   
   
 
@@ -48,14 +52,16 @@
           <tr>
             <!-- 1) Banana -->
             <td>
-                {% set doc = item.inventory.daysOfCover %}
-                {% if doc != "N/A" and doc|float <= 15 %}
+              {% set doc = item.inventory.daysOfCover %}
+              {% if doc == "N/A" %}
+                <img src="{{ url_for('static', filename='img/questionmark.png') }}" alt="?" class="banana-icon">
+              {% elif doc|float <= 15 %}
                 <img src="{{ url_for('static', filename='img/yellow_banana.png') }}" alt="Banana" class="banana-icon">
-                {% elif doc != "N/A" and doc|float <= 22 %}
+              {% elif doc|float <= 22 %}
                 <img src="{{ url_for('static', filename='img/green_banana.png') }}" alt="Banana" class="banana-icon">
-                {% else %}
+              {% else %}
                 <img src="{{ url_for('static', filename='img/rotten_banana.jpg') }}" alt="Banana" class="banana-icon">
-                {% endif %}
+              {% endif %}              
             </td>
   
 

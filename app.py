@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, redirect, url_for
 import json
 from keepa_integration.client import fetch_product_data
 from keepa_integration.client_bulk import fetch_bulk_product_data  # New bulk processing function
+from keepa_integration.client_bulk import fetch_bulk_product_data_all
+from flask import jsonify
 
 app = Flask(__name__)
 
@@ -64,6 +66,49 @@ def bulk_analysis():
 
     # If GET request, just render an empty table
     return render_template('bulk_upc_analysis.html', results=[])
+
+
+
+
+@app.route('/my_suppliers', methods=['GET'])
+def my_suppliers():
+    """
+    Shows a page listing all the user’s suppliers (read from localStorage in the browser).
+    """
+    return render_template('my_suppliers.html')
+
+@app.route('/add_supplier', methods=['GET'])
+def add_supplier():
+    """
+    Shows a page where the user can create a new supplier, fill inbound shipping details, and upload a CSV.
+    """
+    return render_template('add_supplier.html')
+
+
+
+
+
+@app.route('/fetch_csv_keepa', methods=['POST'])
+def fetch_csv_keepa():
+    data = request.get_json()
+    upc_list = data.get('upcList', [])
+    if not upc_list:
+        return jsonify([])
+    print("[DEBUG] fetch_csv_keepa => upc_list length =", len(upc_list), upc_list)
+
+    # CHANGED: call the chunked function
+    results = fetch_bulk_product_data_all(upc_list)
+    print("[DEBUG] final results length =", len(results))
+
+    return jsonify(results)
+
+
+
+@app.route('/supplier_details')
+def supplier_details():
+    return render_template('supplier_details.html')
+
+
 
 
 if __name__ == "__main__":

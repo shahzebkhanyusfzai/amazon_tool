@@ -357,3 +357,65 @@ footer p {
   display: block;
   margin: 0 auto;   /* center it horizontally in the cell */
 }
+
+
+
+
+.bulk-results-table td a:hover {
+  color: #ffcc00;
+  transition: color 0.2s ease; /* optional transition on color */
+
+  text-decoration: underline;  /* or highlight, etc. */
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+.profit-modal {
+  position: fixed;
+  z-index: 9999;
+  left: 0; 
+  top: 0;
+  width: 100%; 
+  height: 100%; 
+  background-color: rgba(0,0,0,0.6); /* semi-transparent overlay */
+}
+
+.profit-modal-content {
+  background-color: #333;
+  width: 400px;
+  margin: 100px auto;
+  padding: 20px;
+  border-radius: 8px;
+  color: #fff;
+  position: relative;
+}
+
+.modal-close {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+
+
+
+
+#suppliersList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.5rem 0;
+  list-style: none;
+}

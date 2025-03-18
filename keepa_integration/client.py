@@ -147,47 +147,72 @@ def build_sellers_table_active(product):
 
 def parse_bsr_times(product):
     """
-    Return (current_bsr, bsr_7day, bsr_30day, best_bsr), reading from product["salesRanks"].
+    Return (current_bsr, bsr_7day, bsr_30day, best_bsr).
+    If no valid salesRank data is found, return ("N/A","N/A","N/A","N/A").
     """
-    sales_ranks = product.get("salesRanks", {})
-    main_cat = product.get("salesRankReference")
-    if not main_cat or str(main_cat) not in sales_ranks:
-        # fallback
-        if sales_ranks:
-            main_cat = list(sales_ranks.keys())[0]
-        else:
-            return ("N/A", "N/A", "N/A", "N/A")
+    sales_ranks = product.get("salesRanks")
+    if not sales_ranks or not isinstance(sales_ranks, dict):
+        # Means there's no salesRanks key or it's None/empty => just return
+        return ("N/A", "N/A", "N/A", "N/A")
 
-    arr = sales_ranks[str(main_cat)]
+    main_cat = product.get("salesRankReference")
+    # If main_cat is missing or not in the dict, let's see if we can fallback to any cat
+    if not main_cat or str(main_cat) not in sales_ranks:
+        # fallback: pick the first available cat in sales_ranks, if any
+        if len(sales_ranks) == 0:
+            return ("N/A", "N/A", "N/A", "N/A")
+        main_cat_id = next(iter(sales_ranks.keys()))  # pick first cat
+    else:
+        main_cat_id = str(main_cat)
+
+    arr = sales_ranks.get(main_cat_id, [])
     if len(arr) < 2:
         return ("N/A", "N/A", "N/A", "N/A")
 
-    # pairs
+    # parse pairs => [ (timestamp, rank), (timestamp, rank), ... ]
     pairs = []
     for i in range(0, len(arr), 2):
         if i+1 < len(arr):
-            pairs.append((arr[i], arr[i+1]))
+            t = arr[i]
+            r = arr[i+1]
+            # rank might be -1 if no data => skip?
+            pairs.append((t, r))
+
     if not pairs:
         return ("N/A", "N/A", "N/A", "N/A")
 
+    # current BSR = last pair's rank
     current_bsr = pairs[-1][1]
-    best_bsr    = min(x[1] for x in pairs)
-    
-    final_ts = pairs[-1][0]
-    cutoff_7  = final_ts - (7*24*60)
-    cutoff_30 = final_ts - (30*24*60)
+    best_bsr = min(x[1] for x in pairs if x[1] > 0) if any(x[1] > 0 for x in pairs) else "N/A"
 
-    arr7 = [r for (ts, r) in pairs if ts >= cutoff_7]
-    arr30= [r for (ts, r) in pairs if ts >= cutoff_30]
-    avg7 = int(sum(arr7)/len(arr7)) if arr7 else "N/A"
-    avg30= int(sum(arr30)/len(arr30)) if arr30 else "N/A"
+    final_ts = pairs[-1][0]
+    cutoff_7  = final_ts - (7*24*60)   # last 7 days in keepa minutes
+    cutoff_30 = final_ts - (30*24*60)  # last 30 days in keepa minutes
+
+    arr7  = [r for (ts, r) in pairs if ts >= cutoff_7]
+    arr30 = [r for (ts, r) in pairs if ts >= cutoff_30]
+
+    if arr7:
+        avg7 = int(sum(arr7)/len(arr7))
+    else:
+        avg7 = "N/A"
+
+    if arr30:
+        avg30 = int(sum(arr30)/len(arr30))
+    else:
+        avg30 = "N/A"
 
     return (current_bsr, avg7, avg30, best_bsr)
 
 def sum_all_stocks(product):
-    """Sum stock from each *live* offer + stats["stockAmazon"] (if > 0)."""
+    """Sum stock from each *live* offer + stats["stockAmazon"]."""
     stats = product.get("stats", {})
-    live_order = product.get("liveOffersOrder", [])
+
+    # Safely handle missing or null liveOffersOrder
+    live_order = product.get("liveOffersOrder")
+    if not isinstance(live_order, list):
+        live_order = []
+
     offers_all = product.get("offers", [])
     tot = 0
 
@@ -205,6 +230,7 @@ def sum_all_stocks(product):
 
 
 
+
 def count_competitive_sellers(product):
     """
     'competitive' means last-known price is within 5% or $2 of the lowest.
@@ -216,7 +242,9 @@ def count_competitive_sellers(product):
         if isinstance(c, list) and c and isinstance(c[0], int):
             bb_price = c[0]
 
-    offers = product.get("offers", [])
+    offers = product.get("offers")
+    if not isinstance(offers, list):
+        offers = []
     last_prices = []
     for off in offers:
         p = get_offer_last_price(off)
