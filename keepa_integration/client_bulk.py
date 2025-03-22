@@ -136,8 +136,14 @@ def fetch_bulk_product_data(upc_list, cost_of_goods=0.0):
     products = raw_json.get("products", [])
     print(f"[DEBUG] Keepa responded with {len(products)} product(s).")
 
+    if len(products) == 0:
+        with open("zeroProds_rawjson.json", "w", encoding="utf-8") as f:
+            json.dump(raw_json, f, indent=2)
+
     if not products:
         print("[WARNING] No products returned from Keepa for these UPCs.")
+        with open("notProds_raw.json", "w", encoding="utf-8") as f:
+            json.dump(raw_json, f, indent=2)
         return []
 
     # 5) Build a simplified final list

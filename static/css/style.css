@@ -419,3 +419,31 @@ footer p {
   margin: 0.5rem 0;
   list-style: none;
 }
+
+
+
+
+
+
+
+/* Example: style your Profit Calculator rows */
+.profit-calc-row {
+  display: flex;              /* ensures label + input sit side by side */
+  align-items: stretch;        /* vertically center them */
+  justify-content: space-around;        /* vertically center them */
+  margin-bottom: 0.5rem;      /* spacing between rows */
+}
+
+.profit-calc-row label {
+  width: 130px;               /* fixed width so labels align vertically */
+  margin-right: 10px;         /* small gap between label and input */
+  text-align: right;          /* right-align the label text */
+}
+
+.profit-calc-row input {
+  width: 80px;                /* make inputs a consistent width */
+  border: 1px solid #999;     /* optional: add a border for clarity */
+  border-radius: 4px;         /* optional: slightly round corners */
+  padding: 2px 4px;           /* optional: small internal padding */
+  color: #000;                /* optional: if you want black text inside inputs */
+}

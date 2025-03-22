@@ -31,26 +31,66 @@
   </table>
 </div>
 
-<!-- A hidden modal for the Profit Calculator -->
+
+
+<!-- The existing Profit Calculator modal -->
 <div id="profitModal" class="profit-modal" style="display:none;">
-    <div class="profit-modal-content">
-      <span id="closeModal" class="modal-close">&times;</span>
-      <h3>Profit Calculator</h3>
-      
-      <label>Sell Price ($):
-        <input type="number" step="0.01" id="modalSellPrice" value="0" />
-      </label>
-      
-      <div>
-        <button id="recalcBtn" class="bulk-analysis-btn">Recalculate</button>
-      </div>
-      
-      <div id="profitResultArea">
-        <!-- We'll fill in "Profit: X" and "ROI: Y%" here -->
-      </div>
+  <div class="profit-modal-content">
+    <span id="closeModal" class="modal-close">&times;</span>
+    <h3>Profit Calculator</h3>
+    
+    <!-- Add fields for costOfGoods, shippingPerLb, shippingPct, and SellPrice -->
+    <div class="profit-calc-row">
+      <label for="modalSellPrice">Sell Price ($):</label>
+      <input 
+        type="number" 
+        step="0.01" 
+        id="modalSellPrice" 
+        value="0" 
+      />
+    </div>
+    
+    <div class="profit-calc-row">
+      <label for="modalCostOfGoods">Cost of Goods ($):</label>
+      <input 
+        type="number" 
+        step="0.01" 
+        id="modalCostOfGoods" 
+        value="0" 
+      />
+    </div>
+    
+    <div class="profit-calc-row">
+      <label for="modalShippingPerLb">Inbound Shipping Per LB ($):</label>
+      <input 
+        type="number" 
+        step="0.01" 
+        id="modalShippingPerLb" 
+        value="0" 
+      />
+    </div>
+    
+    <div class="profit-calc-row">
+      <label for="modalShippingPct">Inbound Shipping % of Cost:</label>
+      <input 
+        type="number" 
+        step="0.01" 
+        id="modalShippingPct" 
+        value="0"
+      />
+    </div>
+    
+
+    <button id="recalcBtn" class="bulk-analysis-btn">Recalculate</button>
+    
+    <div id="profitResultArea" style="margin-top:1rem;">
+      <!-- We'll fill in "Profit: X" and "ROI: Y%" here -->
     </div>
   </div>
-  
+</div>
+
+
+
 
 
 <!-- The JS code that populates the table -->

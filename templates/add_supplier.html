@@ -17,12 +17,25 @@
     </div>
     <div>
       <label for="csvFile">Upload CSV</label><br>
-      <input type="file" id="csvFile" accept=".csv">
+      <input 
+      type="file"
+      id="csvFile"
+      accept=".csv, .xlsx, .xls, 
+      application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, 
+      application/vnd.ms-excel">
+    
       <p style="font-size:0.9rem; color: #bbb;">
         Please make sure the first column contains the UPC and the second column contains the Price.
       </p>
     </div>
-    <button class="bulk-analysis-btn" onclick="saveSupplier()">Save Supplier</button>
+    <!-- <button class="bulk-analysis-btn" onclick="saveSupplier()">Save Supplier</button> -->
+    <button 
+      type="button"
+      class="bulk-analysis-btn"
+      onclick="saveSupplier()">
+      Save Supplier
+    </button>
+  
   </form>
   <!-- Add somewhere in add_supplier.html, e.g. below the form -->
     <div id="uploadSpinner" style="display:none; margin-top: 1rem; text-align: center;">
@@ -37,6 +50,6 @@
 </div>
 
 <!-- Link our new JS file to handle form + localStorage saving -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.7/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="{{ url_for('static', filename='js/add_supplier.js') }}"></script>
 {% endblock %}

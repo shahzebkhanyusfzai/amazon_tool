@@ -38,13 +38,29 @@ document.addEventListener('DOMContentLoaded', () => {
   // 5) For each item, do an initial default profit calc if needed
   upcResults.forEach((item, idx) => {
     if (!item.profitability || item.profitability.trim() === "") {
-      // Compute a default profitability using the “lowest known price”
       const defaultSellPrice = findLowestPrice(item);
-      const breakdown = computeProfitBreakdown(defaultSellPrice, item, supplier);
-      // Build final cell string with color, profit, ROI
+  
+      // pick costOfGoods from item, or 0
+      const costOfGoodsVal = item.costOfGoods || 0;
+  
+      // shipping from supplier
+      const shippingPerLbVal = currentSupplier.inboundShippingPerLb || 0;
+      const shippingPctVal   = currentSupplier.inboundShippingPercent || 0;
+  
+      // Now pass all 5 arguments
+      const breakdown = computeProfitBreakdown(
+        defaultSellPrice,
+        costOfGoodsVal,
+        shippingPerLbVal,
+        shippingPctVal,
+        item
+      );
+  
+      // Build final cell...
       item.profitability = buildProfitCellString(breakdown.profit, breakdown.roi, idx);
     }
   });
+  
 
   // 6) Render the table
   renderPage();
@@ -68,18 +84,37 @@ document.addEventListener('click', (e) => {
 // =======================
 function showProfitCalculator(rowIndex) {
   console.log("[DEBUG showProfitCalculator] rowIndex=", rowIndex);
-  window.currentCalcRow = rowIndex; // store globally
+  window.currentCalcRow = rowIndex; // store globally so we can reference in recalc
 
   // Show the modal
   document.getElementById('profitModal').style.display = 'block';
 
-  // Fill in default Sell Price from item’s lowest price
+  // 1) Grab the item from upcResults
   const item = upcResults[rowIndex];
+
+  // 2) Set default Sell Price from item’s "lowest known" or from item (or 0 if missing)
   const defaultSell = findLowestPrice(item);
   document.getElementById('modalSellPrice').value = defaultSell.toFixed(2);
 
-  // Also show an *initial* breakdown in the modal (before any user changes)
-  const breakdown = computeProfitBreakdown(defaultSell, item, currentSupplier);
+  // 3) Also set costOfGoods from item.costOfGoods, if any
+  const costOfGoodsVal = item.costOfGoods || 0;
+  document.getElementById('modalCostOfGoods').value = costOfGoodsVal.toFixed(2);
+
+  // 4) shipping from the supplier or item
+  const shippingPerLbVal = currentSupplier.inboundShippingPerLb || 0;
+  const shippingPctVal   = currentSupplier.inboundShippingPercent || 0;
+
+  document.getElementById('modalShippingPerLb').value = shippingPerLbVal.toFixed(2);
+  document.getElementById('modalShippingPct').value   = shippingPctVal.toFixed(2);
+
+  // Now do an initial calc
+  const breakdown = computeProfitBreakdown(
+    defaultSell,
+    costOfGoodsVal,
+    shippingPerLbVal,
+    shippingPctVal,
+    item
+  );
   renderProfitBreakdown(breakdown);
 }
 
@@ -97,25 +132,48 @@ document.getElementById('recalcBtn').addEventListener('click', () => {
   }
   const item = upcResults[rowIndex];
 
-  // read user’s new “Sell Price” from modal
-  const spVal = document.getElementById('modalSellPrice').value;
-  const sellPrice = parseFloat(spVal) || 0;  // treat invalid as 0
-  console.log("[DEBUG] recalc => user typed sellPrice=", sellPrice);
+  // read new user inputs from the modal
+  const sellPrice        = parseFloat(document.getElementById('modalSellPrice').value) || 0;
+  const costOfGoodsVal   = parseFloat(document.getElementById('modalCostOfGoods').value) || 0;
+  const shippingPerLbVal = parseFloat(document.getElementById('modalShippingPerLb').value) || 0;
+  const shippingPctVal   = parseFloat(document.getElementById('modalShippingPct').value) || 0;
+
+  console.log("[DEBUG] recalc => user typed =>", {
+    sellPrice,
+    costOfGoodsVal,
+    shippingPerLbVal,
+    shippingPctVal
+  });
 
   // Compute new breakdown
-  const breakdown = computeProfitBreakdown(sellPrice, item, currentSupplier);
+  const breakdown = computeProfitBreakdown(
+    sellPrice,
+    costOfGoodsVal,
+    shippingPerLbVal,
+    shippingPctVal,
+    item
+  );
 
-  // Update the modal with fresh line items
+  // Show results in the modal
   renderProfitBreakdown(breakdown);
 
-  // Also update the table cell
-  item.profitability = buildProfitCellString(breakdown.profit, breakdown.roi, rowIndex);
+  // Also update the item’s local data so it “sticks”
+  item.costOfGoods = costOfGoodsVal;
+  // If you want to store shipping per-lb / shippingPct per item, do the same:
+  // item.myInboundShippingPerLb = shippingPerLbVal;
+  // item.myInboundShippingPercent = shippingPctVal;
+  // But typically shipping is a supplier-level setting, so you might also do:
+  // currentSupplier.inboundShippingPerLb     = shippingPerLbVal;
+  // currentSupplier.inboundShippingPercent   = shippingPctVal;
 
-  // Re-render just that row in the table
+  // Rebuild the Profit cell in the table for that row
+  const newProfitHtml = buildProfitCellString(breakdown.profit, breakdown.roi, rowIndex);
+  item.profitability = newProfitHtml;
+
+  // Re-render just that row
   const rowEl = document.querySelectorAll('#supplierDetailTableBody tr')[rowIndex];
   if (rowEl) {
-    // the Profit column is 4th <td>
-    rowEl.querySelectorAll('td')[3].innerHTML = item.profitability;
+    rowEl.querySelectorAll('td')[3].innerHTML = newProfitHtml;
   }
 });
 
@@ -132,27 +190,23 @@ document.getElementById('closeModal').addEventListener('click', () => {
 // =======================
 //  HELPER: computeProfitBreakdown
 // =======================
-function computeProfitBreakdown(sellPrice, item, supplier) {
-  const costOfGoods      = item.costOfGoods || 0;
-  const shippingPerLb    = supplier.inboundShippingPerLb || 0;
-  const shippingPct      = supplier.inboundShippingPercent || 0;
-
-  // The portion of inbound shipping that depends on costOfGoods
+function computeProfitBreakdown(
+  sellPrice,
+  costOfGoods,
+  shippingPerLb,
+  shippingPct,
+  item
+) {
+  // shippingPct = e.g. 3 => 3%
   const shippingPctAmount = costOfGoods * (shippingPct / 100);
-
-  // The total inbound shipping cost is (per-lb) + (pct-based amount)
   const totalShippingCost = shippingPerLb + shippingPctAmount;
 
   const fbaFee         = item.fba_fee || 0;
   const referralFeePct = item.referral_fee_pct || 15;
+  const referralFee    = sellPrice * (referralFeePct / 100);
 
-  // Referral fee
-  const referralFee = sellPrice * (referralFeePct / 100);
-
-  // Profit
   const profit = sellPrice - referralFee - fbaFee - costOfGoods - totalShippingCost;
 
-  // ROI => now uses (costOfGoods + totalShippingCost) as the cost basis
   let roi = 0;
   const totalCostBasis = costOfGoods + totalShippingCost;
   if (totalCostBasis > 0) {
@@ -162,13 +216,13 @@ function computeProfitBreakdown(sellPrice, item, supplier) {
   return {
     sellPrice,
     costOfGoods,
-    referralFeePct,
-    referralFee,
-    fbaFee,
     shippingPerLb,
     shippingPct,
     shippingPctAmount,
     totalShippingCost,
+    fbaFee,
+    referralFeePct,
+    referralFee,
     profit,
     roi
   };
@@ -311,11 +365,22 @@ function renderPage() {
     // Profit => store or rebuild
     let profitabilityHtml = item.profitability;
     if (!profitabilityHtml) {
-      const breakdown = computeProfitBreakdown(0, item, currentSupplier);
+      const costOfGoodsVal = item.costOfGoods || 0;
+      const shippingPerLbVal = currentSupplier.inboundShippingPerLb || 0;
+      const shippingPctVal   = currentSupplier.inboundShippingPercent || 0;
+    
+      const breakdown = computeProfitBreakdown(
+        /* sellPrice: */ 0,
+        costOfGoodsVal,
+        shippingPerLbVal,
+        shippingPctVal,
+        item
+      );
+    
       profitabilityHtml = buildProfitCellString(breakdown.profit, breakdown.roi, actualIndex);
       item.profitability = profitabilityHtml;
     }
-
+    
     // Ranking
     const rankHtml = `
       Current: ${item.ranking.current}<br>
